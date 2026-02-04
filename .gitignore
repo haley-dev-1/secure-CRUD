@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+out/
+TestResults/
+
+# IDE/editor
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# OS
+.DS_Store
+
+# User secrets / env
+.env
+.env.*
+secrets/
+src/EdgeAdmin.ConsoleUI/appsettings.Development.json
+*.pfx
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Local installers
+*.deb

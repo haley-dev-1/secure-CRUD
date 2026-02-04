@@ -1,0 +1,2 @@
+-- Replace table_name with your real table:
+-- SELECT COUNT(*) AS row_count FROM table_name;
