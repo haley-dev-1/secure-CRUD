@@ -5,7 +5,7 @@ using MySqlConnector;
 
 namespace EdgeAdmin.DAL.Repositories;
 
-public sealed class DeviceRepository : ICrudRepository<Device, long>
+public sealed class DeviceRepository : ICrudRepository<Device, long>, IDeviceQueryRepository
 {
     private readonly MySqlConnectionFactory _factory;
 
@@ -117,6 +117,55 @@ public sealed class DeviceRepository : ICrudRepository<Device, long>
 
         var rows = await cmd.ExecuteNonQueryAsync(ct);
         return rows > 0;
+    }
+
+    public async Task<int> GetTotalDevicesAsync(CancellationToken ct = default)
+    {
+        const string sql = "SELECT COUNT(*) FROM devices;";
+
+        await using var conn = _factory.Create();
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new MySqlCommand(sql, conn);
+        var scalar = await cmd.ExecuteScalarAsync(ct);
+        return Convert.ToInt32(scalar);
+    }
+
+    public async Task<int> GetTotalUsersAsync(CancellationToken ct = default)
+    {
+        const string sql = "SELECT COUNT(*) FROM user_accounts;";
+
+        await using var conn = _factory.Create();
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new MySqlCommand(sql, conn);
+        var scalar = await cmd.ExecuteScalarAsync(ct);
+        return Convert.ToInt32(scalar);
+    }
+
+    public async Task<Device?> GetMostRecentDeviceByUserIdAsync(long userId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT device_id,
+                   device_uid AS device_guid,
+                   nickname AS display_name,
+                   created_at AS created_at_utc
+            FROM devices
+            WHERE owner_user_id = @userId
+            ORDER BY created_at DESC
+            LIMIT 1;
+            ";
+
+        await using var conn = _factory.Create();
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@userId", userId);
+
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        if (!await r.ReadAsync(ct)) return null;
+
+        return Map(r);
     }
 
     private static Device Map(MySqlDataReader r)
