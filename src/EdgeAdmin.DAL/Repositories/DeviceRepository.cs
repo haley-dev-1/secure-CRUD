@@ -66,8 +66,8 @@ public sealed class DeviceRepository : ICrudRepository<Device, long>, IDeviceQue
     public async Task<long> CreateAsync(Device entity, CancellationToken ct = default)
     {
         const string sql = @"
-            INSERT INTO devices (device_uid, nickname, created_at)
-            VALUES (@guid, @name, @created);
+            INSERT INTO devices (device_uid, device_type_id, owner_user_id, nickname, created_at)
+            VALUES (@guid, @deviceTypeId, @ownerUserId, @name, @created);
 
             SELECT LAST_INSERT_ID();
             ";
@@ -77,6 +77,8 @@ public sealed class DeviceRepository : ICrudRepository<Device, long>, IDeviceQue
 
         await using var cmd = new MySqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@guid", entity.DeviceGuid);
+        cmd.Parameters.AddWithValue("@deviceTypeId", entity.DeviceTypeId);
+        cmd.Parameters.AddWithValue("@ownerUserId", entity.OwnerUserId);
         cmd.Parameters.AddWithValue("@name", entity.DisplayName);
         cmd.Parameters.AddWithValue("@created", entity.CreatedAtUtc);
 
@@ -100,6 +102,31 @@ public sealed class DeviceRepository : ICrudRepository<Device, long>, IDeviceQue
         cmd.Parameters.AddWithValue("@id", entity.DeviceId);
         cmd.Parameters.AddWithValue("@guid", entity.DeviceGuid);
         cmd.Parameters.AddWithValue("@name", entity.DisplayName);
+
+        var rows = await cmd.ExecuteNonQueryAsync(ct);
+        return rows > 0;
+    }
+
+    public async Task<bool> UpdateByPublicDeviceIdAsync(
+        string targetPublicDeviceId,
+        string newPublicDeviceId,
+        string name,
+        CancellationToken ct = default)
+    {
+        const string sql = @"
+            UPDATE devices
+            SET device_uid = @newGuid,
+                nickname = @name
+            WHERE device_uid = @targetGuid;
+            ";
+
+        await using var conn = _factory.Create();
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@targetGuid", targetPublicDeviceId);
+        cmd.Parameters.AddWithValue("@newGuid", newPublicDeviceId);
+        cmd.Parameters.AddWithValue("@name", name);
 
         var rows = await cmd.ExecuteNonQueryAsync(ct);
         return rows > 0;
