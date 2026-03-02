@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edge Admin Control Center</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <div class="app-shell">
+        <div class="page-shell">
+            <header class="hero panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">Secure CRUD Front End</p>
+                    <h1>Edge Admin Control Center</h1>
+                    <p class="lede">
+                        A browser dashboard for device and user operations, backed by the same service endpoints as the
+                        console client.
+                    </p>
+                </div>
+                <div class="hero-status">
+                    <div class="status-row">
+                        <span class="status-label">API base</span>
+                        <code>/api</code>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Mode</span>
+                        <span id="api-status" class="pill pill-waiting">Ready</span>
+                    </div>
+                    <button id="refresh-dashboard" class="button button-secondary" type="button">Refresh dashboard</button>
+                </div>
+            </header>
+
+            <main class="dashboard">
+                <section class="metrics-grid">
+                    <article class="metric-card panel">
+                        <span class="metric-label">Total devices</span>
+                        <strong id="metric-devices" class="metric-value">-</strong>
+                        <button class="button button-ghost" type="button" data-action="load-total-devices">Load</button>
+                    </article>
+                    <article class="metric-card panel">
+                        <span class="metric-label">Total users</span>
+                        <strong id="metric-users" class="metric-value">-</strong>
+                        <button class="button button-ghost" type="button" data-action="load-total-users">Load</button>
+                    </article>
+                    <article class="metric-card panel">
+                        <span class="metric-label">Last operation</span>
+                        <strong id="metric-operation" class="metric-value metric-operation">None</strong>
+                        <span id="metric-operation-detail" class="metric-detail">Run an action to inspect the service response.</span>
+                    </article>
+                </section>
+
+                <section class="dashboard-grid">
+                    <article class="panel panel-primary panel-span-2">
+                        <div class="section-head">
+                            <div>
+                                <p class="section-kicker">Devices</p>
+                                <h2>Inventory</h2>
+                                <p class="section-note">Browse the current device list without letting the page grow indefinitely.</p>
+                            </div>
+                            <button class="button" type="button" data-action="list-devices">List all devices</button>
+                        </div>
+                        <div class="table-wrap bounded-scroll bounded-scroll-tall">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Public Device ID</th>
+                                        <th>Name</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="devices-table-body">
+                                    <tr>
+                                        <td colspan="4" class="empty-state">No device data loaded.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+
+                    <article class="panel panel-lookup">
+                        <div class="section-head">
+                            <div>
+                                <p class="section-kicker">Lookup</p>
+                                <h2>Get device by ID</h2>
+                                <p class="section-note">Quick fetch for a single device record.</p>
+                            </div>
+                        </div>
+                        <form id="get-device-form" class="stacked-form compact-stack">
+                            <label>
+                                <span>Device ID</span>
+                                <input name="deviceId" type="number" min="1" required>
+                            </label>
+                            <button class="button" type="submit">Fetch device</button>
+                        </form>
+                    </article>
+
+                    <article class="panel panel-create panel-span-2">
+                        <div class="section-head">
+                            <div>
+                                <p class="section-kicker">Create</p>
+                                <h2>Create device</h2>
+                                <p class="section-note">Organized into compact sections so large option sets do not dominate the page.</p>
+                            </div>
+                        </div>
+                        <form id="create-device-form" class="stacked-form">
+                            <div class="tab-strip" role="tablist" aria-label="Create device sections">
+                                <button class="tab-button is-active" type="button" role="tab" aria-selected="true" data-tab-target="create-basics">Basics</button>
+                                <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab-target="create-hardware">Hardware</button>
+                                <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab-target="create-ownership">Ownership</button>
+                            </div>
+
+                            <section id="create-basics" class="tab-panel is-active" role="tabpanel">
+                                <div class="form-grid">
+                                    <label>
+                                        <span>Public device ID</span>
+                                        <input name="publicDeviceId" type="text" placeholder="dev_123" required>
+                                    </label>
+                                    <label>
+                                        <span>Name</span>
+                                        <input name="name" type="text" required>
+                                    </label>
+                                </div>
+                            </section>
+
+                            <section id="create-hardware" class="tab-panel" role="tabpanel" hidden>
+                                <fieldset class="option-group">
+                                    <legend>Device type ID</legend>
+                                    <p class="section-note">Select the numeric type ID submitted to the existing API.</p>
+                                    <div id="device-type-options" class="option-grid option-grid-scroll">
+                                        <label class="option-card">
+                                            <input name="deviceTypeId" type="radio" value="1" required>
+                                            <span>1</span>
+                                        </label>
+                                        <label class="option-card">
+                                            <input name="deviceTypeId" type="radio" value="2" required>
+                                            <span>2</span>
+                                        </label>
+                                    </div>
+                                </fieldset>
+                            </section>
+
+                            <section id="create-ownership" class="tab-panel" role="tabpanel" hidden>
+                                <div class="form-grid">
+                                    <label>
+                                        <span>Owner user ID</span>
+                                        <input name="ownerUserId" type="number" min="1" required>
+                                    </label>
+                                </div>
+                            </section>
+
+                            <div class="form-actions">
+                                <button class="button" type="submit">Create device</button>
+                            </div>
+                        </form>
+                    </article>
+
+                    <section class="subgrid panel-span-2">
+                        <article class="panel compact-panel">
+                            <div class="section-head">
+                                <div>
+                                    <p class="section-kicker">Update</p>
+                                    <h2>Update device</h2>
+                                    <p class="section-note">Compact edit flow for an existing public device ID.</p>
+                                </div>
+                            </div>
+                            <form id="update-device-form" class="stacked-form compact-stack">
+                                <label>
+                                    <span>Target public device ID</span>
+                                    <input name="targetPublicDeviceId" type="text" required>
+                                </label>
+                                <label>
+                                    <span>New public device ID</span>
+                                    <input name="publicDeviceId" type="text" required>
+                                </label>
+                                <label>
+                                    <span>Name</span>
+                                    <input name="name" type="text" required>
+                                </label>
+                                <button class="button" type="submit">Update device</button>
+                            </form>
+                        </article>
+
+                        <article class="panel compact-panel danger-panel">
+                            <div class="section-head">
+                                <div>
+                                    <p class="section-kicker">Delete</p>
+                                    <h2>Delete device</h2>
+                                    <p class="section-note">Danger zone. This permanently removes the selected device record.</p>
+                                </div>
+                            </div>
+                            <form id="delete-device-form" class="stacked-form compact-stack">
+                                <label>
+                                    <span>Device ID</span>
+                                    <input name="deviceId" type="number" min="1" required>
+                                </label>
+                                <button class="button button-danger" type="submit">Delete device</button>
+                            </form>
+                        </article>
+                    </section>
+
+                    <section class="subgrid panel-span-2">
+                        <article class="panel compact-panel">
+                            <div class="section-head">
+                                <div>
+                                    <p class="section-kicker">Users</p>
+                                    <h2>Last used device</h2>
+                                </div>
+                            </div>
+                            <form id="last-device-form" class="stacked-form compact-stack">
+                                <label>
+                                    <span>User ID</span>
+                                    <input name="userId" type="number" min="1" required>
+                                </label>
+                                <button class="button" type="submit">Show last used device</button>
+                            </form>
+                        </article>
+
+                        <article class="panel compact-panel">
+                            <div class="section-head">
+                                <div>
+                                    <p class="section-kicker">Users</p>
+                                    <h2>Created and updated dates</h2>
+                                </div>
+                            </div>
+                            <form id="user-dates-form" class="stacked-form compact-stack">
+                                <label>
+                                    <span>User ID</span>
+                                    <input name="userId" type="number" min="1" required>
+                                </label>
+                                <button class="button" type="submit">Load user dates</button>
+                            </form>
+                        </article>
+
+                        <article class="panel compact-panel">
+                            <div class="section-head">
+                                <div>
+                                    <p class="section-kicker">Users</p>
+                                    <h2>Mark user inactive</h2>
+                                </div>
+                            </div>
+                            <form id="mark-inactive-form" class="stacked-form compact-stack">
+                                <label>
+                                    <span>User ID</span>
+                                    <input name="userId" type="number" min="1" required>
+                                </label>
+                                <button class="button button-secondary" type="submit">Run stale check</button>
+                            </form>
+                        </article>
+                    </section>
+
+                    <article class="panel panel-span-2">
+                        <div class="section-head">
+                            <div>
+                                <p class="section-kicker">Database Explorer</p>
+                                <h2>All table get methods</h2>
+                                <p class="section-note">Inspect all rows, a single primary-key row, or a filtered subset for each discovered table.</p>
+                            </div>
+                        </div>
+                        <div class="explorer-toolbar">
+                            <label class="inline-field">
+                                <span>Table</span>
+                                <select id="db-table-select"></select>
+                            </label>
+                            <button id="db-load-all" class="button" type="button">Get all rows</button>
+                        </div>
+                        <div class="explorer-meta">
+                            <span id="db-table-summary" class="metric-detail">Loading schema metadata...</span>
+                        </div>
+                        <div class="explorer-actions">
+                            <form id="db-get-by-key-form" class="stacked-form compact-form">
+                                <label>
+                                    <span id="db-key-label">Primary key</span>
+                                    <input id="db-key-value" name="keyValue" type="text" required>
+                                </label>
+                                <button class="button button-ghost" type="submit">Get single record</button>
+                            </form>
+                            <form id="db-filter-form" class="stacked-form compact-form">
+                                <label>
+                                    <span>Column</span>
+                                    <select id="db-filter-column" name="columnName"></select>
+                                </label>
+                                <label>
+                                    <span>Value</span>
+                                    <input name="value" type="text" required>
+                                </label>
+                                <label>
+                                    <span>Limit</span>
+                                    <input name="limit" type="number" min="1" max="200" value="25" required>
+                                </label>
+                                <button class="button button-secondary" type="submit">Get subset</button>
+                            </form>
+                        </div>
+                        <div class="table-wrap explorer-table-wrap bounded-scroll bounded-scroll-tall">
+                            <table class="data-table">
+                                <thead id="db-results-head"></thead>
+                                <tbody id="db-results-body">
+                                    <tr>
+                                        <td class="empty-state">No database records loaded.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+
+                    <article class="panel panel-span-2">
+                        <div class="section-head">
+                            <div>
+                                <p class="section-kicker">Response</p>
+                                <h2>Inspector</h2>
+                                <p class="section-note">All API responses stay visible here in a scrollable debug view.</p>
+                            </div>
+                        </div>
+                        <div class="inspector-meta">
+                            <span id="response-summary">No requests sent yet.</span>
+                        </div>
+                        <pre id="response-output" class="response-output bounded-scroll bounded-scroll-tall">Awaiting interaction...</pre>
+                    </article>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="/app.js" defer></script>
+</body>
+
+</html>

@@ -31,8 +31,13 @@ builder.Services.AddScoped<IDeviceQueryRepository>(sp => sp.GetRequiredService<D
 builder.Services.AddScoped<ICrudRepository<EdgeAdmin.Shared.Models.Device, long>>(sp => sp.GetRequiredService<DeviceRepository>());
 builder.Services.AddScoped<IUserAccountRepository, UserAccountRepository>();
 builder.Services.AddScoped<IDeviceQueryService, DeviceQueryService>();
+builder.Services.AddScoped<IDatabaseExplorerRepository, DatabaseExplorerRepository>();
+builder.Services.AddScoped<IDatabaseExplorerService, DatabaseExplorerService>();
 
 var app = builder.Build();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.MapGet("/api/devices", async (IDeviceQueryService service, CancellationToken ct) =>
 {
@@ -100,6 +105,32 @@ app.MapPost("/api/users/{userId:long}/mark-inactive-if-stale", async (long userI
     var result = await service.MarkUserInactiveIfStaleAsync(userId, ct);
     return ToHttpResult(result);
 });
+
+app.MapGet("/api/db/tables", async (IDatabaseExplorerService service, CancellationToken ct) =>
+{
+    var result = await service.GetTablesAsync(ct);
+    return ToHttpResult(result);
+});
+
+app.MapGet("/api/db/tables/{tableName}/rows", async (string tableName, int? limit, int? offset, IDatabaseExplorerService service, CancellationToken ct) =>
+{
+    var result = await service.GetRowsAsync(tableName, limit ?? 50, offset ?? 0, ct);
+    return ToHttpResult(result);
+});
+
+app.MapGet("/api/db/tables/{tableName}/rows/by-key/{keyValue}", async (string tableName, string keyValue, IDatabaseExplorerService service, CancellationToken ct) =>
+{
+    var result = await service.GetRowByPrimaryKeyAsync(tableName, keyValue, ct);
+    return ToHttpResult(result);
+});
+
+app.MapGet("/api/db/tables/{tableName}/rows/by-column/{columnName}", async (string tableName, string columnName, string value, int? limit, IDatabaseExplorerService service, CancellationToken ct) =>
+{
+    var result = await service.GetRowsByColumnAsync(tableName, columnName, value, limit ?? 50, ct);
+    return ToHttpResult(result);
+});
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

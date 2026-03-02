@@ -17,6 +17,7 @@ TestResults/
 .env
 .env.*
 secrets/
+src/EdgeAdmin.Service/appsettings.Development.json
 src/EdgeAdmin.ConsoleUI/appsettings.Development.json
 *.pfx
 *.pem
