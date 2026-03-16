@@ -1,56 +1,91 @@
 # secure-CRUD
-Academic project - can chatGPT/LLM tools make a secure full stack application?
 
-## Browser UI + Service
-Prereqs:
+Secure CRUD is a .NET 8 full-stack academic project with these layers:
+
+- Client: browser dashboard in `src/EdgeAdmin.Service/wwwroot`
+- Service host: ASP.NET Core minimal API in `src/EdgeAdmin.Service`
+- Business layer: `src/EdgeAdmin.Business`
+- Data layer: `src/EdgeAdmin.DAL`
+- Shared models: `src/EdgeAdmin.Shared`
+- Optional second client: console UI in `src/EdgeAdmin.ConsoleUI`
+
+The browser client is hosted by the same ASP.NET Core service that exposes the API, so the deployed system is:
+
+`Browser -> ASP.NET Core service -> business services -> repositories -> MySQL`
+
+## Repository Quick Start
+
+Prerequisites:
+
+- Windows with PowerShell
 - .NET SDK 8.x
-- MySQL Server 8.x running locally
+- MySQL Server 8.x
+- An IDE such as Visual Studio 2022 or VS Code with the C# extension
 
-Setup:
-1. Create or verify the database `addmin`.
-2. Configure the service connection string locally in one of these ways:
-   - `src/EdgeAdmin.Service/appsettings.Development.json`
-   - `DB_CONNECTION_STRING` environment variable
-3. Configure the console client `ServiceBaseUrl` only if you still plan to use the console UI.
+1. Download the repository ZIP from GitHub and extract it.
+2. Open the extracted folder.
+3. Create a MySQL database named `addmin`.
+4. Set the connection string in `src/EdgeAdmin.Service/appsettings.Development.json` or with the `DB_CONNECTION_STRING` environment variable.
+5. Build the solution:
 
-Run:
 ```powershell
 dotnet build .\secure-CRUD.sln
+```
+
+6. Run the service host:
+
+```powershell
 dotnet run --project .\src\EdgeAdmin.Service\EdgeAdmin.Service.csproj
 ```
 
-Open the local service URL in a browser to use the front end. The dashboard calls the same `/api/...` routes used by the console client.
-It also includes a database explorer that discovers all tables from the active schema and can perform:
-- get all rows
-- get a single row by primary key
-- get a filtered subset by column value
+7. Open the local URL printed by ASP.NET Core in a browser.
+8. Use the dashboard to test create, update, get-all, get-by-id, and database explorer flows.
 
-Current dashboard areas:
-- device inventory with internal scrolling
-- tabbed create-device flow
-- compact update/delete cards
-- user lookup actions
-- response inspector
-- database explorer for all discovered tables
+## What Works
 
-## Console UI (PowerShell)
-- The original console client still exists in `src/EdgeAdmin.ConsoleUI`.
-- If you want to keep using it, set `ServiceBaseUrl` in its local appsettings and run:
+The service currently exposes these main routes:
+
+- `GET /api/devices`
+- `GET /api/devices/{id}`
+- `POST /api/devices`
+- `PUT /api/devices/by-public-id/{publicDeviceId}`
+- `DELETE /api/devices/{id}`
+- `GET /api/devices/total`
+- `GET /api/users/total`
+- `GET /api/users/{userId}/last-device`
+- `GET /api/users/{userId}/dates`
+- `POST /api/users/{userId}/mark-inactive-if-stale`
+- `GET /api/db/tables`
+- `GET /api/db/tables/{tableName}/rows`
+- `GET /api/db/tables/{tableName}/rows/by-key/{keyValue}`
+- `GET /api/db/tables/{tableName}/rows/by-column/{columnName}?value=...`
+
+## Deliverable Docs
+
+- Deployment guide: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- Full-system test and screenshot guide: [docs/FULL-SYSTEM-TEST.md](docs/FULL-SYSTEM-TEST.md)
+- Screenshot checklist: [docs/screenshots/README.md](docs/screenshots/README.md)
+
+## Optional Console Client
+
+If you also want to test the API from the console client, set `ServiceBaseUrl` in its appsettings and run:
 
 ```powershell
 dotnet run --project .\src\EdgeAdmin.ConsoleUI\EdgeAdmin.ConsoleUI.csproj
 ```
 
-## Service Layer Host
-- Platform: ASP.NET Core Web API (minimal API) in `src/EdgeAdmin.Service`.
-- All business-layer methods are exposed as HTTP endpoints under `/api/...`.
-- See `src/EdgeAdmin.Service/Program.cs` comments for hosting notes (local Kestrel, Azure App Service, IIS, Docker).
+## Database Screenshot Helpers
 
-## Suggested Console Test Flow (for screenshots)
-1. `8` Get device by id (baseline check).
-2. `5` Create device.
-3. `8` Get device by id using returned id.
-4. `6` Update device.
-5. `8` Get device by id to verify update.
-6. `7` Delete device.
-7. `8` Get device by id to verify deletion result.
+Helper SQL for screenshot evidence is in:
+
+- [sql/queries/count_rows.sql](sql/queries/count_rows.sql)
+
+## Verification
+
+Your setup succeeded when:
+
+- `dotnet build` completes successfully
+- the service starts without a connection-string error
+- the browser dashboard loads
+- dashboard actions return HTTP 200 in the response inspector
+- database queries confirm the same inserts and updates shown in the UI

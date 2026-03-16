@@ -1,6 +1,23 @@
 # Deliverable Screenshots
-- erd.png (table diagram)
-- seed_count.png (proof of 50+ rows, e.g., SELECT COUNT(*))
-- dashboard-overview.png (browser dashboard landing view)
-- dashboard-db-explorer.png (all-table get methods / explorer view)
-- dashboard-device-flow.png (inventory + create/update/delete workflow)
+
+Use this folder for the screenshots referenced in `docs/FULL-SYSTEM-TEST.md`.
+
+Minimum recommended files:
+
+- `dashboard-overview.png`
+- `seed_count.png`
+- `create-device-client.png`
+- `create-device-db.png`
+- `get-device-client.png`
+- `get-device-db.png`
+- `update-device-client.png`
+- `update-device-db.png`
+- `get-all-client.png`
+- `get-all-db.png`
+- `get-one-by-key-client.png`
+- `get-one-by-key-db.png`
+
+Optional delete evidence:
+
+- `delete-device-client.png`
+- `delete-device-db.png`

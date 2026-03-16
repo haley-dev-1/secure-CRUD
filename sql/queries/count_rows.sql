@@ -1,13 +1,17 @@
--- Replace table_name with your real table:
--- SELECT COUNT(*) AS row_count FROM table_name;
+USE addmin;
 
-namespace EdgeAdmin.Shared.Models;
+SELECT 'devices' AS table_name, COUNT(*) AS row_count
+FROM devices
+UNION ALL
+SELECT 'user_accounts' AS table_name, COUNT(*) AS row_count
+FROM user_accounts;
 
-public sealed class Device
-{
-    public long DeviceId { get; set; }            // PK
-    public string DeviceGuid { get; set; } = "";  // unique-ish external id
-    public string DisplayName { get; set; } = ""; // friendly name
-    public long? UserAccountId { get; set; }      // FK (nullable if unassigned)
-    public DateTime CreatedAtUtc { get; set; }
-}
+SELECT device_id, device_uid, owner_user_id, nickname, created_at
+FROM devices
+ORDER BY device_id DESC
+LIMIT 25;
+
+SELECT user_id, created_at, updated_at, status
+FROM user_accounts
+ORDER BY user_id DESC
+LIMIT 25;
