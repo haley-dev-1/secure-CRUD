@@ -26,20 +26,21 @@ Prerequisites:
 2. Open the extracted folder.
 3. Create a MySQL database named `addmin`.
 4. Set the connection string in `src/EdgeAdmin.Service/appsettings.Development.json` or with the `DB_CONNECTION_STRING` environment variable.
-5. Build the solution:
+5. Verify that MySQL is running and listening on `127.0.0.1:3306`.
+6. Build the solution:
 
 ```powershell
 dotnet build .\secure-CRUD.sln
 ```
 
-6. Run the service host:
+7. Run the service host:
 
 ```powershell
 dotnet run --project .\src\EdgeAdmin.Service\EdgeAdmin.Service.csproj
 ```
 
-7. Open the local URL printed by ASP.NET Core in a browser.
-8. Use the dashboard to test create, update, get-all, get-by-id, and database explorer flows.
+8. Open the local URL printed by ASP.NET Core in a browser.
+9. Use the dashboard to test create, update, get-all, get-by-id, and database explorer flows.
 
 ## What Works
 
@@ -89,3 +90,5 @@ Your setup succeeded when:
 - the browser dashboard loads
 - dashboard actions return HTTP 200 in the response inspector
 - database queries confirm the same inserts and updates shown in the UI
+
+If the app hosts correctly but every request fails with a MySQL connection error, verify the local `MySQL80` service and port `3306` before changing application code. The detailed recovery flow is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).

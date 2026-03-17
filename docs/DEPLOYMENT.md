@@ -4,7 +4,7 @@
 
 This document explains how to go from a GitHub repository ZIP download to a working secure-CRUD deployment with:
 
-- MySQL as the database platform
+- MySQL as the database platform (MySQL Workbench 8.0 CE)
 - ASP.NET Core on .NET 8 as the service host
 - the browser dashboard hosted by the ASP.NET Core service
 
@@ -32,13 +32,13 @@ Install these before building:
 - MySQL Server 8.x
 - GitHub access or a downloaded ZIP of the repository
 - Visual Studio 2022, VS Code, or another IDE that supports .NET 8
-- PowerShell
+- PowerShell (or use WSL, but this is currently written for PowerShell users)
 
 Recommended settings:
 
-- MySQL host: `127.0.0.1`
-- MySQL port: `3306`
-- Database name: `addmin`
+- MySQL host: `127.0.0.1` (local)
+- MySQL port: `3306` (though this is somewhat arbitrary)
+- Database name: `addmin` (this spelling is correct!)
 - Service environment: Development for local deployment
 
 ## 4. Download And Open The Project
@@ -119,42 +119,81 @@ Update `REPLACE_ME` to the correct password, or set an environment variable inst
 $env:DB_CONNECTION_STRING="server=127.0.0.1;port=3306;database=addmin;user=root;password=your_password;"
 ```
 
-## 7. Build The Solution
+## 7. Verify Database Connectivity
 
-Run:
+Before running the project, make sure:
+
+- the connection string points to the correct MySQL instance
+- `MySQL80` is running
+- port `3306` is reachable
+
+Quick verification:
+
+```powershell
+Get-Service MySQL80
+Test-NetConnection -ComputerName 127.0.0.1 -Port 3306
+```
+
+Expected result:
+
+- `MySQL80` should be `Running`
+- `TcpTestSucceeded` should be `True`
+
+If MySQL is not running yet, start it:
+
+```powershell
+Start-Service MySQL80
+```
+
+## 8. Build And Run The Service Host In The First Terminal
+
+Open the first PowerShell terminal in the project root and run:
 
 ```powershell
 dotnet build .\secure-CRUD.sln
-```
-
-Build succeeded if:
-
-- the command exits without errors
-- all projects compile
-- no missing package or SDK errors are reported
-
-## 8. Run And Host The Back End
-
-This project uses ASP.NET Core minimal APIs as the service platform.
-
-Local hosting command:
-
-```powershell
 dotnet run --project .\src\EdgeAdmin.Service\EdgeAdmin.Service.csproj
 ```
+
+This starts the ASP.NET Core service host and also serves the browser dashboard from `wwwroot`.
 
 What this hosts:
 
 - service endpoints under `/api/...`
 - the browser client from `wwwroot`
 
-The service starts correctly when:
+Build and startup succeeded if:
 
+- `dotnet build` completes without errors
 - ASP.NET Core prints local listening URLs
 - no `Missing connection string` exception appears
 - no MySQL connection failure appears on startup or first request
 
-## 9. Host The Front End
+If the service host starts but dashboard requests fail with a message such as `Unable to connect to any of the specified MySQL hosts`, stop and verify the database service first. That error means the application is running, but the database host or port is not reachable.
+
+After the service starts, open the local URL shown in the terminal in a web browser. That browser session is the main front end for this project.
+
+## 9. Run The Console Client In The Second Terminal
+
+If you want to show the second client you used during testing, open a second PowerShell terminal and run:
+
+```powershell
+dotnet run --project .\src\EdgeAdmin.ConsoleUI\EdgeAdmin.ConsoleUI.csproj
+```
+
+This does not host the browser front end. It runs the optional console client, which calls the already-running service.
+
+The console client defaults to:
+
+```text
+http://localhost:5000
+```
+
+Use this second terminal if you want additional proof that two clients can consume the same service layer:
+
+- browser dashboard via the service host
+- console UI via HTTP calls to the same API
+
+## 10. Front End Hosting Details
 
 The front end is the static dashboard in:
 
@@ -162,31 +201,13 @@ The front end is the static dashboard in:
 - `src/EdgeAdmin.Service/wwwroot/app.js`
 - `src/EdgeAdmin.Service/wwwroot/styles.css`
 
-You do not need a separate frontend hosting platform for local deployment. The ASP.NET Core service already hosts the client through:
+You do not need a separate frontend hosting platform for local deployment. The ASP.NET Core service already hosts the browser client through:
 
 - `app.UseDefaultFiles();`
 - `app.UseStaticFiles();`
 - `app.MapFallbackToFile("index.html");`
 
 That makes the most appropriate client-hosting choice for this project the same ASP.NET Core host as the API.
-
-## 10. Optional Console Client
-
-The console app is an optional second client that calls the same service endpoints.
-
-It reads `ServiceBaseUrl` and defaults to:
-
-```text
-http://localhost:5000
-```
-
-Run it with:
-
-```powershell
-dotnet run --project .\src\EdgeAdmin.ConsoleUI\EdgeAdmin.ConsoleUI.csproj
-```
-
-Use it if you want additional proof that multiple clients can consume the same service layer.
 
 ## 11. Functional Verification
 
@@ -248,6 +269,45 @@ If the dashboard loads but requests fail:
 - confirm MySQL is running on the host and port in the connection string
 - confirm the `addmin` schema exists
 - confirm required tables exist
+
+If MySQL is stopped or port `3306` is closed:
+
+```powershell
+Get-Service MySQL80
+Test-NetConnection -ComputerName 127.0.0.1 -Port 3306
+Start-Service MySQL80
+```
+
+If MySQL still fails to start, the problem may be the local MySQL installation rather than this project. One known failure mode is that MySQL cannot access its own data directory. In that case `mysqld` reports a permission-denied error for:
+
+- `C:\ProgramData\MySQL\MySQL Server 8.0\Data`
+
+Symptoms of that specific issue:
+
+- the frontend and console host normally
+- every database-backed request fails
+- `MySQL80` stays stopped
+- `TcpTestSucceeded` is `False`
+
+Fix for that case:
+
+1. Open PowerShell as Administrator.
+2. Grant the MySQL service account access to the data directory:
+
+```powershell
+icacls "C:\ProgramData\MySQL\MySQL Server 8.0\Data" /grant "NETWORK SERVICE:(OI)(CI)F" /T
+```
+
+3. Start MySQL again:
+
+```powershell
+Start-Service MySQL80
+Test-NetConnection -ComputerName 127.0.0.1 -Port 3306
+```
+
+4. Re-run the service host and refresh the dashboard.
+
+If permission repair does not solve it, repair the MySQL Server 8.0 installation with MySQL Installer and then repeat the connectivity checks above.
 
 If create fails:
 
