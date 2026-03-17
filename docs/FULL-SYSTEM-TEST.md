@@ -1,279 +1,219 @@
-# Full System Test Guide
+# Full System Test Conversation Record
 
-## Goal
+This file records the main prompts and answers from the project troubleshooting and deployment conversation. It is organized as prompt/answer pairs so the repo preserves the reasoning that led to the final deployment and testing flow.
 
-This guide produces evidence that the full system works across all layers:
+## Pair 1
 
-- client layer: browser dashboard
-- service layer: ASP.NET Core API
-- business layer: validation and service methods
-- data layer: MySQL repositories
+**Prompt**
 
-The required functionality for this project is:
+Perform a full system test, create a deployment document, and update the GitHub README so the project can be built, hosted, and tested end to end.
 
-- insert
-- update
-- get all
-- get one by unique value or ID
+**Answer**
 
-Delete is optional, but this project supports it and it is included below.
+The repository was reviewed first to confirm the actual architecture. The project uses:
 
-## Test Preconditions
+- a browser client hosted from `src/EdgeAdmin.Service/wwwroot`
+- an ASP.NET Core service host in `src/EdgeAdmin.Service`
+- a business layer in `src/EdgeAdmin.Business`
+- a DAL in `src/EdgeAdmin.DAL`
+- an optional console client in `src/EdgeAdmin.ConsoleUI`
 
-Before testing:
+The main documentation deliverables were then added:
 
-1. Start MySQL and confirm the `addmin` database is available.
-2. Confirm the service connection string is valid.
-3. Run the service:
+- `docs/DEPLOYMENT.md`
+- `docs/FULL-SYSTEM-TEST.md`
+- updated root `README.md`
+- updated `docs/screenshots/README.md`
+- fixed `sql/queries/count_rows.sql`
 
-```powershell
-dotnet run --project .\src\EdgeAdmin.Service\EdgeAdmin.Service.csproj
-```
+The initial conclusion was that the codebase already supported create, update, get-all, get-one, and optional delete through the service and browser dashboard, but actual proof still depended on a working MySQL connection and screenshot evidence.
 
-4. Open the dashboard in a browser.
-5. Open your SQL client against the same `addmin` database.
+## Pair 2
 
-## Evidence Rules
+**Prompt**
 
-For each test, capture:
+Things ran but the database was not connected, so no results actually showed up. The front end and console ran.
 
-- one screenshot from the client layer
-- one screenshot from the database layer
+**Answer**
 
-When possible, include the browser response inspector and the SQL result grid in the same screenshot set.
+That meant only partial proof existed:
 
-## Recommended Screenshot File Names
+- the service host started
+- the browser client loaded
+- the console client ran
 
-- `dashboard-overview.png`
-- `seed_count.png`
-- `create-device-client.png`
-- `create-device-db.png`
-- `get-device-client.png`
-- `get-device-db.png`
-- `update-device-client.png`
-- `update-device-db.png`
-- `get-all-client.png`
-- `get-all-db.png`
-- `get-one-by-key-client.png`
-- `get-one-by-key-db.png`
-- `delete-device-client.png`
-- `delete-device-db.png`
+But full end-to-end CRUD verification was still blocked because the database was unavailable. At that point, the correct interpretation was:
 
-## Test Data
+- hosting proof existed
+- database-backed functionality was not yet verified
 
-Use a unique public device ID so your screenshots are unambiguous.
+The next recommended action was to diagnose the connection instead of assuming the application code was broken.
 
-Example values:
+## Pair 3
 
-- original public device ID: `dev_stage3_001`
-- updated public device ID: `dev_stage3_001_updated`
-- original nickname/name: `Stage 3 Test Device`
-- updated nickname/name: `Stage 3 Updated Device`
+**Prompt**
 
-Use a real `owner_user_id` that already exists in `user_accounts`.
+The dashboard showed: `Data access failed: Unable to connect to any of the specified MySQL hosts.`
 
-## SQL Helpers
+**Answer**
 
-You can use the helper file:
+That error meant the application was running, but it could not reach MySQL. The first checks were:
 
-- [sql/queries/count_rows.sql](../sql/queries/count_rows.sql)
+- verify the connection string in `src/EdgeAdmin.Service/appsettings.Development.json`
+- confirm MySQL Server was running
+- confirm port `3306` was listening
+- confirm the database name `addmin` existed
 
-Additional useful queries:
+The important conclusion was that this was a connectivity problem below the app layer, not yet evidence of a bug in the service code.
 
-```sql
-USE addmin;
+## Pair 4
 
-SELECT device_id, device_uid, owner_user_id, nickname, created_at
-FROM devices
-WHERE device_uid IN ('dev_stage3_001', 'dev_stage3_001_updated')
-ORDER BY device_id DESC;
-```
+**Prompt**
 
-```sql
-USE addmin;
+Something changed and the connection looked broken, so connectivity had to be tested and traced backward.
 
-SELECT *
-FROM devices
-ORDER BY device_id DESC;
-```
+**Answer**
 
-## Test 1: Baseline Proof
+The troubleshooting process verified:
 
-Client evidence:
+- `appsettings.Development.json` had not been changed by the documentation work
+- the `MySQL80` Windows service was stopped
+- `127.0.0.1:3306` was not accepting connections
 
-- capture the dashboard landing page
-- show the inventory area and response inspector
+That immediately narrowed the problem to the local MySQL installation rather than the .NET app.
 
-Database evidence:
+## Pair 5
 
-- run row-count queries for `devices` and `user_accounts`
-- capture the result grid
+**Prompt**
 
-Success criteria:
+Figure out why MySQL would not start.
 
-- dashboard loads
-- row counts return successfully
+**Answer**
 
-## Test 2: Insert A New Device
+The service configuration was inspected, then `mysqld.exe` was run in console mode using the same `my.ini` file as the Windows service. That exposed the actual root cause:
 
-Client steps:
+- MySQL failed with `OS errno: 13 - Permission denied`
+- the failing path was `C:\ProgramData\MySQL\MySQL Server 8.0\Data`
 
-1. In `Create device`, enter a unique public device ID.
-2. Enter a device name.
-3. Select a device type ID.
-4. Enter an existing owner user ID.
-5. Submit the form.
-6. Capture the browser showing HTTP 200 in the response inspector.
+So the real issue was:
 
-Database steps:
+- MySQL did not have filesystem access to its own data directory
+- because of that, the MySQL service could not start
+- because the service could not start, port `3306` stayed closed
+- because the port stayed closed, the app could not connect to the database
 
-```sql
-USE addmin;
+## Pair 6
 
-SELECT device_id, device_uid, owner_user_id, nickname, created_at
-FROM devices
-WHERE device_uid = 'dev_stage3_001';
-```
+**Prompt**
 
-Capture the query result showing the inserted row.
+MySQL folder permissions were repaired and port `3306` started responding.
 
-Success criteria:
+**Answer**
 
-- service returns success
-- the inserted row exists in MySQL
+After the permission repair:
 
-## Test 3: Get The Inserted Device By ID
+- `MySQL80` was running
+- `TcpTestSucceeded` on `127.0.0.1:3306` was `True`
+- the `addmin` database existed
+- expected tables existed, including `devices` and `user_accounts`
 
-Client steps:
+At that point, the live ASP.NET Core service was tested directly through its API. The service returned successful HTTP 200 responses for:
 
-1. Copy the `device_id` returned by the create operation.
-2. Use `Get device by ID`.
-3. Capture the browser result.
+- `GET /api/devices`
+- `GET /api/devices/total`
+- `GET /api/users/total`
 
-Database steps:
+That confirmed the full stack was working again:
 
-```sql
-USE addmin;
+`frontend/console -> service -> business -> DAL -> MySQL`
 
-SELECT device_id, device_uid, owner_user_id, nickname, created_at
-FROM devices
-WHERE device_id = <inserted_id>;
-```
+## Pair 7
 
-Capture the matching row.
+**Prompt**
 
-Success criteria:
+Why did it work now when it failed before?
 
-- the browser returns the same record as the database
+**Answer**
 
-## Test 4: Update The Device
+Before:
 
-Client steps:
+- MySQL was stopped
+- port `3306` was closed
+- MySQL could not access `C:\ProgramData\MySQL\MySQL Server 8.0\Data`
 
-1. In `Update device`, set:
-   - target public device ID = `dev_stage3_001`
-   - new public device ID = `dev_stage3_001_updated`
-   - name = `Stage 3 Updated Device`
-2. Submit the form.
-3. Capture the successful response in the browser.
+After:
 
-Database steps:
+- the MySQL data directory permissions were fixed
+- the MySQL service could start
+- port `3306` was open
+- the app could reach a live database
 
-```sql
-USE addmin;
+So the difference was not an application-code change. The difference was that the database server was finally able to start and accept connections.
 
-SELECT device_id, device_uid, owner_user_id, nickname, created_at
-FROM devices
-WHERE device_uid = 'dev_stage3_001_updated';
-```
+## Pair 8
 
-Capture the updated row.
+**Prompt**
 
-Success criteria:
+Update the deployment document so it covers that use case.
 
-- the old public ID no longer represents the active record
-- the new public ID and updated name are stored in MySQL
+**Answer**
 
-## Test 5: Get All Devices
+The deployment document was updated to include:
 
-Client steps:
+- verification of the `MySQL80` service before app startup
+- verification of port `3306`
+- the case where the app hosts correctly but all database-backed requests fail
+- the specific recovery flow for the MySQL data-directory permission problem
 
-1. Select `List all devices`.
-2. Capture the inventory table showing the updated device.
+This added an explicit branch for:
 
-Database steps:
+- service host up
+- front end visible
+- console client running
+- but database calls failing because MySQL itself is down
 
-```sql
-USE addmin;
+## Pair 9
 
-SELECT device_id, device_uid, owner_user_id, nickname, created_at
-FROM devices
-ORDER BY device_id DESC;
-```
+**Prompt**
 
-Capture the result set.
+Split the deployment flow so step 8 is build and run, and step 9 is the second part actually used during testing.
 
-Success criteria:
+**Answer**
 
-- the client list matches the database contents
+The deployment flow was corrected to match the real local workflow:
 
-## Test 6: Get One Record By Unique Value Or Key
+- Step 8: build and run the ASP.NET Core service host in the first terminal
+- Step 9: run the console client in the second terminal
 
-This can be shown with the database explorer.
+An earlier misleading statement that the second terminal “hosted the front end” was corrected. The accurate model is:
 
-Client steps:
+- the browser front end is hosted by the ASP.NET Core service
+- the second terminal only runs the optional console client
 
-1. Open `Database Explorer`.
-2. Select the `devices` table.
-3. Use `Get single record` with the inserted `device_id`.
-4. Capture the returned row.
+## Pair 10
 
-Database steps:
+**Prompt**
 
-```sql
-USE addmin;
+Update the root README to follow GitHub’s recommended README guidance.
 
-SELECT *
-FROM devices
-WHERE device_id = <inserted_id>;
-```
+**Answer**
 
-Capture the same row in SQL.
+The root `README.md` was rewritten so it clearly includes:
 
-Success criteria:
+- what the project does
+- why the project is useful
+- how users get started
+- where users can get help
+- who maintains and contributes
 
-- both client and database show one matching record
+This made the root README more appropriate for GitHub visitors while leaving detailed deployment and troubleshooting steps in `docs/DEPLOYMENT.md`.
 
-## Test 7: Optional Delete
+## Pair 11
 
-Client steps:
+**Prompt**
 
-1. Use `Delete device` with the inserted `device_id`.
-2. Capture the successful response.
+Replace the original full-system test file with the gist of this conversation as prompt/answer pairs.
 
-Database steps:
+**Answer**
 
-```sql
-USE addmin;
-
-SELECT *
-FROM devices
-WHERE device_id = <inserted_id>;
-```
-
-Capture the empty result.
-
-Success criteria:
-
-- the row is no longer present
-
-## Final Submission Checklist
-
-Include:
-
-- deployment document
-- updated README
-- screenshots proving create, update, get-all, get-one, and optional delete
-- screenshots proving the same results directly in MySQL
-
-The strongest final evidence bundle is a chronological set of screenshots that shows one record being created, read, updated, optionally deleted, and checked in both the UI and the database after each step.
+This file is the result of that request. It no longer serves as a procedural test script. Instead, it records the reasoning, troubleshooting path, and deployment/testing conclusions established during the conversation.
